@@ -1,0 +1,7 @@
+{
+  "name": "ASIA2EU - Proxy Shopping Service",
+  "description": "A professional proxy shopping service helping you buy from Asia and ship to Europe with zero service fees during promo periods.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
