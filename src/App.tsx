@@ -235,7 +235,7 @@ export default function App() {
               className="space-y-20"
             >
               {/* Hero Section */}
-              <section className="flex flex-col md:flex-row items-center gap-10">
+              <section className="flex flex-col md:flex-row-reverse items-center gap-10">
                 <div className="flex-1 space-y-6">
                   <h1 className="text-4xl md:text-6xl font-bold text-slate-900 tracking-tight leading-tight">
                     Buy from Asia, <br />
@@ -296,10 +296,10 @@ export default function App() {
 
                 <div className="grid md:grid-cols-2 gap-8">
                   <CategoryCard 
-                    title="Motorcycle Parts"
-                    description="Windshields, specific model modification parts, and accessories."
-                    image="https://images.pexels.com/photos/1715184/pexels-photo-1715184.jpeg?auto=compress&cs=tinysrgb&w=800"
-                    why="We strictly verify the exact SKU to provide an accurate quote, avoiding confusing promotional listings."
+                    title="Printer Ink Cartridges"
+                    description="High-quality third-party ink cartridges and toner for all major brands."
+                    image="https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?q=80&w=800&auto=format&fit=crop"
+                    why="Save up to 70% compared to European retail prices while maintaining professional print quality."
                   />
                   <CategoryCard 
                     title="Novelty Stationery"
@@ -308,10 +308,10 @@ export default function App() {
                     why="Easy access to the latest trends from China, Japan, and Korea rare in Europe."
                   />
                   <CategoryCard 
-                    title="Printer Ink Cartridges"
-                    description="High-quality third-party ink cartridges and toner for all major brands."
-                    image="https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?q=80&w=800&auto=format&fit=crop"
-                    why="Save up to 70% compared to European retail prices while maintaining professional print quality."
+                    title="Motorcycle Parts"
+                    description="Windshields, specific model modification parts, and accessories."
+                    image="https://images.pexels.com/photos/1715184/pexels-photo-1715184.jpeg?auto=compress&cs=tinysrgb&w=800"
+                    why="We strictly verify the exact SKU to provide an accurate quote, avoiding confusing promotional listings."
                   />
                   <CategoryCard 
                     title="Hobbies & Collectibles"
