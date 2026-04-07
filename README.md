@@ -1,20 +1,68 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# ASIA2EU - Asia Proxy Shopping Service
 
-# Run and deploy your AI Studio app
+Modern proxy shopping service website built with React, Vite, and Cloudflare Serverless stack.
 
-This contains everything you need to run your app locally.
+## 🚀 Architecture: Serverless & Zero Cost
+This project is designed to run entirely on Cloudflare's free tier, replacing traditional VPS costs.
 
-View your app in AI Studio: https://ai.studio/apps/3bfab5d8-49cc-43cf-8798-d95897accab2
+- **Frontend**: Cloudflare Pages
+- **Database**: Cloudflare D1 (SQLite)
+- **Object Storage**: Cloudflare R2 (Image Hosting)
+- **Backend API**: Cloudflare Workers
 
-## Run Locally
+---
 
-**Prerequisites:**  Node.js
+## 🛠 Setup & Deployment
 
+### 1. Cloudflare D1 (Database)
+Create a D1 database in Cloudflare dashboard and run the following SQL to initialize:
+```sql
+CREATE TABLE IF NOT EXISTS posts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  type TEXT CHECK( type IN ('recommend','warning') ) NOT NULL,
+  date TEXT NOT NULL
+);
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 2. Cloudflare R2 (Storage)
+- Create a bucket named `asia2eubucket`.
+- In bucket settings, enable **Public Access** and take note of the `.r2.dev` URL (or bind your custom domain).
+
+### 3. Cloudflare Worker (Backend)
+Deploy a worker with the logic contained in the project (Logic manages D1/R2 and provides `/api/posts` and `/api/upload` endpoints).
+
+**Worker Bindings Required:**
+- **D1 Binding**: Variable name `D1_DB` linked to your D1 database.
+- **R2 Binding**: Variable name `R2_BUCKET` linked to your R2 bucket.
+- **Environment Variable**: `ADMIN_PASSWORD` = `your_secure_password`.
+
+### 4. Frontend Configuration
+Create a `.env` file in the root based on `.env.example`:
+```env
+VITE_WORKER_URL=https://your-worker-subdomain.workers.dev
+```
+
+---
+
+## 💻 Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Run dev server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+**Admin Access**: Navigate to `http://localhost:3000/#admin` to access the hidden management panel.
+
+---
+
+## 🔒 Security
+- All sensitive IDs and passwords are kept in Cloudflare's secure environment.
+- The Admin Panel is password-protected and uses secure headers for communication.
