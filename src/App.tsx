@@ -56,7 +56,20 @@ interface DailyPost {
   title: string;
   content: string;
   type: 'recommend' | 'warning';
+  category: string;
+  verified: number;
+  price_status: string;
+  core_params: string;
+  custom_tag: string;
   date: string;
+  updated_date: string;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  emoji: string;
+  sort_order: number;
 }
 
 // --- Constants ---
@@ -544,16 +557,7 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-1 gap-12 max-w-4xl mx-auto">
-                {dailyPosts.slice((currentPage - 1) * 5, currentPage * 5).map(post => {
-                  // Split meta from content
-                  let meta: any = null;
-                  let mainBody = post.content;
-                  if (post.content.includes('---METADATA_SEPARATOR---')) {
-                    const parts = post.content.split('---METADATA_SEPARATOR---');
-                    try { meta = JSON.parse(parts[0]); mainBody = parts[1]; } catch(e) {}
-                  }
-
-                  return (
+                {dailyPosts.slice((currentPage - 1) * 5, currentPage * 5).map(post => (
                     <article key={post.id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 flex flex-col md:flex-row">
                       <div className="p-8 md:p-10 flex-1 space-y-6">
                         <div className="flex items-center justify-between">
@@ -567,22 +571,22 @@ export default function App() {
                         </div>
                         <h2 className="text-3xl font-bold text-slate-900">{post.title}</h2>
                         
-                        {meta && (
+                        {(post.category || post.price_status || post.core_params || post.custom_tag) && (
                           <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-6 space-y-2 text-sm text-slate-700">
-                            <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">💵 价格状态:</strong> {meta.priceDev}</div>
-                            <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">⚙️ 核心参数:</strong> {meta.coreParams || '-'}</div>
-                            <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">🕵️ 实况沟通:</strong> {meta.verified ? <span className="text-green-600 font-bold">✅ 已与卖家实拍确认</span> : <span className="text-amber-600 font-bold">⚠️ 页面图盲买风险</span>}</div>
-                            {meta.customTag && <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">🏷️ 补充说明:</strong> {meta.customTag}</div>}
+                            {post.category && <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">📦 所属品类:</strong> {post.category}</div>}
+                            {post.price_status && <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">💵 价格状态:</strong> {post.price_status}</div>}
+                            <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">⚙️ 核心参数:</strong> {post.core_params || '-'}</div>
+                            <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">🕵️ 实况沟通:</strong> {post.verified ? <span className="text-green-600 font-bold">✅ 已与卖家实拍确认</span> : <span className="text-amber-600 font-bold">⚠️ 未深入沟通，存在页面图盲买风险</span>}</div>
+                            {post.custom_tag && <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">🏷️ 补充说明:</strong> {post.custom_tag}</div>}
                           </div>
                         )}
 
                         <div className="prose prose-slate max-w-none prose-img:rounded-2xl prose-img:max-h-96 prose-img:object-cover">
-                          <ReactMarkdown>{mainBody}</ReactMarkdown>
+                          <ReactMarkdown>{post.content}</ReactMarkdown>
                         </div>
                       </div>
                     </article>
-                  );
-                })}
+                  ))}
                 
                 {dailyPosts.length === 0 && (
                   <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
@@ -621,8 +625,7 @@ export default function App() {
               posts={dailyPosts}
               onRefresh={loadPosts}
               onSuccess={() => {
-                loadPosts(); // 重新加载数据
-                switchView('daily');
+                loadPosts(); // 重新加载数据，留在管理页
               }} 
             />
           )}
@@ -845,16 +848,75 @@ function AdminPanel({ workerUrl, posts, onRefresh, onSuccess }: { workerUrl: str
   const [content, setContent] = useState('');
   const [type, setType] = useState<'recommend' | 'warning'>('recommend');
   
-  // Custom structured fields
+  // Editing state
+  const [editingPostId, setEditingPostId] = useState<number | null>(null);
+  
+  // Cloud categories from D1
+  const [cloudCategories, setCloudCategories] = useState<Category[]>([]);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatEmoji, setNewCatEmoji] = useState('📦');
+  const [showCatManager, setShowCatManager] = useState(false);
+
+  const loadCategories = async () => {
+    try {
+      const res = await fetch(`${workerUrl}/api/categories`);
+      if (res.ok) setCloudCategories(await res.json());
+    } catch(e) { console.error('Failed to load categories', e); }
+  };
+
+  useEffect(() => { if (isAuthed) loadCategories(); }, [isAuthed]);
+
+  const [category, setCategory] = useState('');
   const [priceDev, setPriceDev] = useState('正常市场价');
   const [coreParams, setCoreParams] = useState('');
   const [verified, setVerified] = useState(false);
   const [customTag, setCustomTag] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const clearForm = () => {
+    setTitle(''); setContent(''); setCoreParams(''); setCustomTag(''); setVerified(false);
+    setCategory(''); setPriceDev('正常市场价'); setType('recommend');
+    setEditingPostId(null);
+  };
+
+  const startEditing = (post: DailyPost) => {
+    setEditingPostId(post.id);
+    setTitle(post.title);
+    setContent(post.content);
+    setType(post.type);
+    setCategory(post.category || '');
+    setPriceDev(post.price_status || '正常市场价');
+    setCoreParams(post.core_params || '');
+    setVerified(!!post.verified);
+    setCustomTag(post.custom_tag || '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pass === 'admin') setIsAuthed(true);
-    else alert('Wrong password');
+    try {
+      const res = await fetch(`${workerUrl}/api/posts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pass}` },
+        body: JSON.stringify({ title: '__auth_test__', content: 'test', type: 'recommend' })
+      });
+      if (res.ok) {
+        const postsRes = await fetch(`${workerUrl}/api/posts`);
+        if (postsRes.ok) {
+          const allPosts = await postsRes.json();
+          const testPost = allPosts.find((p: any) => p.title === '__auth_test__');
+          if (testPost) {
+            await fetch(`${workerUrl}/api/posts/${testPost.id}`, {
+              method: 'DELETE', headers: { 'Authorization': `Bearer ${pass}` }
+            });
+          }
+        }
+        setIsAuthed(true);
+      } else {
+        alert('密码错误，请使用 Cloudflare Worker 中设置的 ADMIN_PASSWORD');
+      }
+    } catch {
+      alert('无法连接后端，请检查网络');
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -885,31 +947,62 @@ function AdminPanel({ workerUrl, posts, onRefresh, onSuccess }: { workerUrl: str
   const handleSubmit = async () => {
     if (!title || !content) return;
     setLoading(true);
-    
-    // Use a clean separator instead of raw HTML to avoid Markdown parsing issues
-    const metaObj = { priceDev, coreParams, verified, customTag };
-    const finalContent = `${JSON.stringify(metaObj)}---METADATA_SEPARATOR---${content}`;
+
+    const postData = {
+      title, content, type, category, verified,
+      price_status: priceDev, core_params: coreParams, custom_tag: customTag,
+    };
 
     try {
-      const res = await fetch(`${workerUrl}/api/posts`, {
-        method: 'POST',
+      const isEditing = editingPostId !== null;
+      const url = isEditing ? `${workerUrl}/api/posts/${editingPostId}` : `${workerUrl}/api/posts`;
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${pass}`
         },
-        body: JSON.stringify({ title, content: finalContent, type })
+        body: JSON.stringify(postData)
       });
       if (res.ok) {
-        alert('Published!');
-        // clear states
-        setTitle(''); setContent(''); setCoreParams(''); setCustomTag('');
+        alert(isEditing ? '更新成功！' : '发布成功！');
+        clearForm();
         onSuccess();
       }
     } catch (err) {
-      alert('Publish failed');
+      alert('Operation failed');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCatName.trim()) return;
+    try {
+      const res = await fetch(`${workerUrl}/api/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pass}` },
+        body: JSON.stringify({ name: newCatName.trim(), emoji: newCatEmoji || '📦' })
+      });
+      if (res.ok) {
+        setNewCatName(''); setNewCatEmoji('📦');
+        loadCategories();
+      } else {
+        alert('添加失败，可能名称已存在');
+      }
+    } catch { alert('网络错误'); }
+  };
+
+  const handleDeleteCategory = async (id: number) => {
+    if (!window.confirm('确定要删除这个品类吗？')) return;
+    try {
+      await fetch(`${workerUrl}/api/categories/${id}`, {
+        method: 'DELETE', headers: { 'Authorization': `Bearer ${pass}` }
+      });
+      loadCategories();
+    } catch { alert('删除失败'); }
   };
 
   if (!isAuthed) {
@@ -978,7 +1071,24 @@ function AdminPanel({ workerUrl, posts, onRefresh, onSuccess }: { workerUrl: str
           <div className="space-y-4 pt-4 border-t border-slate-100">
             <h3 className="font-bold text-slate-900 flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-blue-500"/> Structured Meta Info</h3>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-500 uppercase">所属品类</label>
+                  <button onClick={() => setShowCatManager(!showCatManager)} className="text-[10px] text-blue-500 font-bold hover:underline">⚙️ 管理品类</button>
+                </div>
+                <select
+                  value={category}
+                  onChange={e => setCategory(e.target.value)}
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 bg-white"
+                >
+                  <option value="">-- 请选择品类 --</option>
+                  {cloudCategories.map(cat => (
+                    <option key={cat.id} value={`${cat.emoji} ${cat.name}`}>{cat.emoji} {cat.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase">价格偏差状态</label>
                 <select 
@@ -991,7 +1101,7 @@ function AdminPanel({ workerUrl, posts, onRefresh, onSuccess }: { workerUrl: str
                 </select>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 col-span-2 lg:col-span-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">核心参数摘要</label>
                 <input 
                   value={coreParams} onChange={e => setCoreParams(e.target.value)}
@@ -1000,6 +1110,38 @@ function AdminPanel({ workerUrl, posts, onRefresh, onSuccess }: { workerUrl: str
                 />
               </div>
             </div>
+
+            {/* Category Manager Panel */}
+            {showCatManager && (
+              <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 space-y-4">
+                <h4 className="font-bold text-indigo-900 text-sm">📂 品类管理 (云端同步)</h4>
+                <div className="flex gap-2">
+                  <input
+                    value={newCatEmoji}
+                    onChange={e => setNewCatEmoji(e.target.value)}
+                    className="w-14 px-2 py-2 rounded-lg border border-indigo-200 text-center text-lg"
+                    placeholder="📦"
+                  />
+                  <input
+                    value={newCatName}
+                    onChange={e => setNewCatName(e.target.value)}
+                    placeholder="输入新品类名称..."
+                    className="flex-1 px-3 py-2 rounded-lg border border-indigo-200"
+                    onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
+                  />
+                  <button onClick={handleAddCategory} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700">添加</button>
+                </div>
+                <div className="grid gap-2 max-h-48 overflow-y-auto">
+                  {cloudCategories.map(cat => (
+                    <div key={cat.id} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-indigo-100">
+                      <span className="text-sm">{cat.emoji} {cat.name}</span>
+                      <button onClick={() => handleDeleteCategory(cat.id)} className="text-red-400 hover:text-red-600 text-xs font-bold px-2 py-1 hover:bg-red-50 rounded">删除</button>
+                    </div>
+                  ))}
+                  {cloudCategories.length === 0 && <p className="text-xs text-indigo-400 italic">暂无品类，请添加。</p>}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4 items-center">
               <label className="flex items-center gap-3 cursor-pointer bg-slate-50 p-3 rounded-xl border border-slate-200 hover:bg-slate-100">
@@ -1055,11 +1197,12 @@ function AdminPanel({ workerUrl, posts, onRefresh, onSuccess }: { workerUrl: str
           <div className="bg-white p-8 rounded-3xl border border-slate-200 prose prose-slate max-w-none shadow-inner min-h-[400px]">
             <h2 className="text-2xl font-bold mb-4">{title || "Post Title Preview"}</h2>
             
-            {(priceDev || coreParams || customTag) && (
+            {(category || priceDev || coreParams || customTag) && (
               <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-6 space-y-2 text-sm text-slate-700 not-prose">
+                {category && <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">📦 所属品类:</strong> {category}</div>}
                 <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">💵 价格状态:</strong> {priceDev}</div>
                 <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">⚙️ 核心参数:</strong> {coreParams || '-'}</div>
-                <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">🕵️ 实况沟通:</strong> {verified ? <span className="text-green-600 font-bold">✅ 已与卖家实拍确认</span> : <span className="text-amber-600 font-bold">⚠️ 页面图盲买风险</span>}</div>
+                <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">🕵️ 实况沟通:</strong> {verified ? <span className="text-green-600 font-bold">✅ 已与卖家实拍确认</span> : <span className="text-amber-600 font-bold">⚠️ 未深入沟通，存在页面图盲买风险</span>}</div>
                 {customTag && <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">🏷️ 补充说明:</strong> {customTag}</div>}
               </div>
             )}
@@ -1070,35 +1213,48 @@ function AdminPanel({ workerUrl, posts, onRefresh, onSuccess }: { workerUrl: str
       </div>
 
       <div className="mt-16 border-t border-slate-200 pt-10">
-        <h2 className="text-2xl font-bold mb-6">Manage Published Posts</h2>
+        <h2 className="text-2xl font-bold mb-6">管理已发布帖子</h2>
         <div className="grid gap-4">
           {posts.map(post => (
-            <div key={post.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center hover:border-slate-300 transition-colors">
-              <div>
-                <span className={cn("text-xs font-bold px-2 py-0.5 rounded uppercase mr-3", post.type === 'recommend' ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
-                  {post.type}
-                </span>
-                <span className="text-xs text-slate-400 mr-4">{new Date(post.date).toLocaleDateString()}</span>
-                <span className="font-bold text-slate-700">{post.title}</span>
+            <div key={post.id} className={cn("bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center transition-colors", editingPostId === post.id ? "border-blue-400 ring-2 ring-blue-100" : "border-slate-100 hover:border-slate-300")}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={cn("text-xs font-bold px-2 py-0.5 rounded uppercase", post.type === 'recommend' ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
+                    {post.type}
+                  </span>
+                  {post.category && <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{post.category}</span>}
+                  <span className="text-xs text-slate-400">创建: {new Date(post.date).toLocaleDateString()}</span>
+                  {post.updated_date && <span className="text-xs text-blue-400">更新: {new Date(post.updated_date).toLocaleDateString()}</span>}
+                </div>
+                <p className="font-bold text-slate-700 mt-1 truncate">{post.title}</p>
               </div>
-              <button 
-                onClick={async () => {
-                  if(window.confirm('Are you absolutely sure you want to delete this post?')) {
-                    try {
-                      await fetch(`${workerUrl}/api/posts/${post.id}`, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${pass}` }
-                      });
-                      onRefresh(); // reload 
-                    } catch (e) {
-                      alert('Delete failed');
+              <div className="flex gap-2 ml-4 shrink-0">
+                <button 
+                  onClick={() => startEditing(post)}
+                  className="text-blue-500 hover:text-white font-bold px-4 py-2 hover:bg-blue-500 rounded-lg text-sm border border-blue-200 transition-all"
+                >
+                  编辑
+                </button>
+                <button 
+                  onClick={async () => {
+                    if(window.confirm('确定要永久删除这篇帖子吗？')) {
+                      try {
+                        await fetch(`${workerUrl}/api/posts/${post.id}`, {
+                          method: 'DELETE',
+                          headers: { 'Authorization': `Bearer ${pass}` }
+                        });
+                        if (editingPostId === post.id) clearForm();
+                        onRefresh();
+                      } catch (e) {
+                        alert('Delete failed');
+                      }
                     }
-                  }
-                }}
-                className="text-red-500 hover:text-white font-bold px-4 py-2 hover:bg-red-500 rounded-lg text-sm border border-red-200 transition-all"
-              >
-                Delete
-              </button>
+                  }}
+                  className="text-red-500 hover:text-white font-bold px-4 py-2 hover:bg-red-500 rounded-lg text-sm border border-red-200 transition-all"
+                >
+                  删除
+                </button>
+              </div>
             </div>
           ))}
           {posts.length === 0 && <p className="text-slate-400 italic">No posts published yet.</p>}
