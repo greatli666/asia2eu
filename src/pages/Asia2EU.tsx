@@ -35,7 +35,7 @@ import ReactMarkdown from 'react-markdown';
 import { cn } from '@/src/lib/utils';
 
 // --- Types ---
-type View = 'home' | 'ideas' | 'about' | 'faq' | 'contact' | 'daily' | 'admin';
+type View = 'home' | 'ideas' | 'about' | 'faq' | 'contact' | 'daily';
 
 interface CaseStudy {
   id: string;
@@ -128,10 +128,10 @@ const CASE_STUDIES: CaseStudy[] = [
   }
 ];
 
-export default function App() {
+export default function Asia2EU() {
   const getInitialView = (): View => {
     const hash = window.location.hash.replace('#', '');
-    return (['home', 'ideas', 'about', 'faq', 'contact', 'daily', 'admin'].includes(hash) ? hash : 'home') as View;
+    return (['home', 'ideas', 'about', 'faq', 'contact', 'daily'].includes(hash) ? hash : 'home') as View;
   };
   const [currentView, setCurrentView] = useState<View>(getInitialView);
 
@@ -139,21 +139,19 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      if (['home', 'ideas', 'about', 'faq', 'contact', 'daily', 'admin'].includes(hash)) {
+      if (['home', 'ideas', 'about', 'faq', 'contact', 'daily'].includes(hash)) {
         setCurrentView(hash as View);
       }
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState<CaseStudy | null>(null);
   const [aiInput, setAiInput] = useState('');
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // New State for Cloudflare Features
-  const [adminPassword, setAdminPassword] = useState('');
+  // Data State for Cloudflare Features
   const [dailyPosts, setDailyPosts] = useState<DailyPost[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const WORKER_URL = import.meta.env.VITE_WORKER_URL || 'https://your-worker-name.your-subdomain.workers.dev';
@@ -226,69 +224,24 @@ export default function App() {
 
   const switchView = (view: View) => {
     setCurrentView(view);
-    setIsMenuOpen(false);
     window.scrollTo(0, 0);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased selection:bg-blue-200">
-      {/* Navigation */}
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div
-            className="cursor-pointer flex items-center gap-2 group"
-            onClick={() => switchView('home')}
-          >
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-1.5 rounded-lg shadow-sm group-hover:scale-105 transition-transform">
-              <PlaneTakeoff className="w-5 h-5" />
-            </div>
-            <div className="text-2xl tracking-tighter">
-              <span className="font-black text-slate-900">ASIA</span>
-              <span className="font-light text-blue-600 mx-0.5">2</span>
-              <span className="font-black text-slate-900">EU</span>
-            </div>
-          </div>
-
-          <div className="hidden md:flex items-center gap-8">
-            <button onClick={() => switchView('home')} className={cn("text-slate-600 hover:text-blue-600 font-medium transition-colors", currentView === 'home' && "text-blue-600 font-bold")}>Home</button>
-            <button onClick={() => switchView('daily')} className={cn("text-slate-600 hover:text-blue-600 font-medium transition-colors", currentView === 'daily' && "text-blue-600 font-bold")}>Daily Picks</button>
-            <button onClick={() => switchView('ideas')} className={cn("text-slate-600 hover:text-blue-600 font-medium transition-colors", currentView === 'ideas' && "text-blue-600 font-bold")}>Curated Finds</button>
-            <button onClick={() => switchView('about')} className={cn("text-slate-600 hover:text-blue-600 font-medium transition-colors", currentView === 'about' && "text-blue-600 font-bold")}>About Gary</button>
-            <button onClick={() => switchView('faq')} className={cn("text-slate-600 hover:text-blue-600 font-medium transition-colors", currentView === 'faq' && "text-blue-600 font-bold")}>FAQ</button>
-            <button
-              onClick={() => switchView('contact')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full font-medium transition-colors text-sm shadow-sm"
-            >
-              Shipping & Contact
-            </button>
-          </div>
-
-          <button className="md:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            <Menu className="w-6 h-6 text-slate-600" />
-          </button>
+    <div className="min-h-screen bg-transparent text-slate-800 font-sans antialiased selection:bg-blue-200">
+      {/* Subpage Header/Tabs could go here if needed, but the main Global Navbar handles routing now */}
+      
+      {/* Custom localized Sub-Nav for Asia2EU specific views (Hash Routing) */}
+      <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur border-b border-slate-200 dark:border-slate-800 sticky top-[72px] z-40">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex overflow-x-auto gap-6 sm:gap-8 hide-scrollbar">
+          <button onClick={() => switchView('home')} className={cn("text-sm whitespace-nowrap hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors", currentView === 'home' ? "text-blue-600 dark:text-blue-400 font-bold" : "text-slate-600 dark:text-slate-400")}>Service Home</button>
+          <button onClick={() => switchView('daily')} className={cn("text-sm whitespace-nowrap hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors", currentView === 'daily' ? "text-blue-600 dark:text-blue-400 font-bold" : "text-slate-600 dark:text-slate-400")}>Daily Picks</button>
+          <button onClick={() => switchView('ideas')} className={cn("text-sm whitespace-nowrap hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors", currentView === 'ideas' ? "text-blue-600 dark:text-blue-400 font-bold" : "text-slate-600 dark:text-slate-400")}>Curated Finds</button>
+          <button onClick={() => switchView('about')} className={cn("text-sm whitespace-nowrap hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors", currentView === 'about' ? "text-blue-600 dark:text-blue-400 font-bold" : "text-slate-600 dark:text-slate-400")}>About Gary</button>
+          <button onClick={() => switchView('faq')} className={cn("text-sm whitespace-nowrap hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors", currentView === 'faq' ? "text-blue-600 dark:text-blue-400 font-bold" : "text-slate-600 dark:text-slate-400")}>FAQ</button>
+          <button onClick={() => switchView('contact')} className={cn("text-sm whitespace-nowrap hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors", currentView === 'contact' ? "text-blue-600 dark:text-blue-400 font-bold" : "text-slate-600 dark:text-slate-400")}>Shipping & Contact</button>
         </div>
-
-        {/* Mobile Menu */}
-        <AnimatePresence>
-          {isMenuOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="md:hidden border-t border-slate-100 bg-slate-50 overflow-hidden"
-            >
-              <div className="flex flex-col p-4 gap-4">
-                <button onClick={() => switchView('home')} className={cn("text-left py-2 font-medium", currentView === 'home' ? "text-blue-600 font-bold" : "text-slate-600")}>Home</button>
-                <button onClick={() => switchView('daily')} className={cn("text-left py-2 font-medium", currentView === 'daily' ? "text-blue-600 font-bold" : "text-slate-600")}>Daily Picks</button>
-                <button onClick={() => switchView('ideas')} className={cn("text-left py-2 font-medium", currentView === 'ideas' ? "text-blue-600 font-bold" : "text-slate-600")}>Curated Finds</button>
-                <button onClick={() => switchView('about')} className={cn("text-left py-2 font-medium", currentView === 'about' ? "text-blue-600 font-bold" : "text-slate-600")}>About Gary</button>
-                <button onClick={() => switchView('faq')} className={cn("text-left py-2 font-medium", currentView === 'faq' ? "text-blue-600 font-bold" : "text-slate-600")}>FAQ</button>
-                <button onClick={() => switchView('contact')} className="text-left py-2 text-blue-600 font-bold">Shipping & Contact</button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </nav>
+      </div>
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-10">
@@ -619,17 +572,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {currentView === 'admin' && (
-            <AdminPanel
-              workerUrl={WORKER_URL}
-              posts={dailyPosts}
-              onRefresh={loadPosts}
-              onSuccess={() => {
-                loadPosts(); // 重新加载数据，留在管理页
-              }}
-            />
-          )}
-
           {currentView === 'contact' && (
             <motion.div
               key="contact"
@@ -814,457 +756,10 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-12 mt-20">
-        <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex items-center gap-2">
-            <div className="bg-slate-900 text-white p-1 rounded">
-              <PlaneTakeoff className="w-4 h-4" />
-            </div>
-            <span className="font-black text-slate-900 tracking-tighter">ASIA2EU</span>
-          </div>
-          <div className="flex gap-8 text-sm text-slate-500">
-            <button onClick={() => switchView('home')} className="hover:text-blue-600">Home</button>
-            <button onClick={() => switchView('ideas')} className="hover:text-blue-600">Curated Finds</button>
-            <button onClick={() => switchView('about')} className="hover:text-blue-600">About Gary</button>
-            <button onClick={() => switchView('faq')} className="hover:text-blue-600">FAQ</button>
-            <button onClick={() => switchView('contact')} className="hover:text-blue-600">Contact</button>
-          </div>
-          <p className="text-xs text-slate-400">© 2026 ASIA2EU Proxy Shopping Service. All rights reserved.</p>
-        </div>
-      </footer>
     </div>
   );
 }
 
-function AdminPanel({ workerUrl, posts, onRefresh, onSuccess }: { workerUrl: string, posts: DailyPost[], onRefresh: () => void, onSuccess: () => void }) {
-  const [pass, setPass] = useState('');
-  const [isAuthed, setIsAuthed] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [type, setType] = useState<'recommend' | 'warning'>('recommend');
-
-  // Editing state
-  const [editingPostId, setEditingPostId] = useState<number | null>(null);
-
-  // Cloud categories from D1
-  const [cloudCategories, setCloudCategories] = useState<Category[]>([]);
-  const [newCatName, setNewCatName] = useState('');
-  const [newCatEmoji, setNewCatEmoji] = useState('📦');
-  const [showCatManager, setShowCatManager] = useState(false);
-
-  const loadCategories = async () => {
-    try {
-      const res = await fetch(`${workerUrl}/api/categories`);
-      if (res.ok) setCloudCategories(await res.json());
-    } catch (e) { console.error('Failed to load categories', e); }
-  };
-
-  useEffect(() => { if (isAuthed) loadCategories(); }, [isAuthed]);
-
-  const [category, setCategory] = useState('');
-  const [priceDev, setPriceDev] = useState('正常市场价');
-  const [coreParams, setCoreParams] = useState('');
-  const [verified, setVerified] = useState(false);
-  const [customTag, setCustomTag] = useState('');
-
-  const clearForm = () => {
-    setTitle(''); setContent(''); setCoreParams(''); setCustomTag(''); setVerified(false);
-    setCategory(''); setPriceDev('正常市场价'); setType('recommend');
-    setEditingPostId(null);
-  };
-
-  const startEditing = (post: DailyPost) => {
-    setEditingPostId(post.id);
-    setTitle(post.title);
-    setContent(post.content);
-    setType(post.type);
-    setCategory(post.category || '');
-    setPriceDev(post.price_status || '正常市场价');
-    setCoreParams(post.core_params || '');
-    setVerified(!!post.verified);
-    setCustomTag(post.custom_tag || '');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch(`${workerUrl}/api/posts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pass}` },
-        body: JSON.stringify({ title: '__auth_test__', content: 'test', type: 'recommend' })
-      });
-      if (res.ok) {
-        const postsRes = await fetch(`${workerUrl}/api/posts`);
-        if (postsRes.ok) {
-          const allPosts = await postsRes.json();
-          const testPost = allPosts.find((p: any) => p.title === '__auth_test__');
-          if (testPost) {
-            await fetch(`${workerUrl}/api/posts/${testPost.id}`, {
-              method: 'DELETE', headers: { 'Authorization': `Bearer ${pass}` }
-            });
-          }
-        }
-        setIsAuthed(true);
-      } else {
-        alert('密码错误，请使用 Cloudflare Worker 中设置的 ADMIN_PASSWORD');
-      }
-    } catch {
-      alert('无法连接后端，请检查网络');
-    }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const res = await fetch(`${workerUrl}/api/upload`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${pass}` },
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.url) {
-        setContent(prev => prev + `\n\n![Image](${data.url})`);
-      }
-    } catch (err) {
-      alert('Upload failed');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!title || !content) return;
-    setLoading(true);
-
-    const postData = {
-      title, content, type, category, verified,
-      price_status: priceDev, core_params: coreParams, custom_tag: customTag,
-    };
-
-    try {
-      const isEditing = editingPostId !== null;
-      const url = isEditing ? `${workerUrl}/api/posts/${editingPostId}` : `${workerUrl}/api/posts`;
-      const method = isEditing ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${pass}`
-        },
-        body: JSON.stringify(postData)
-      });
-      if (res.ok) {
-        alert(isEditing ? '更新成功！' : '发布成功！');
-        clearForm();
-        onSuccess();
-      }
-    } catch (err) {
-      alert('Operation failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddCategory = async () => {
-    if (!newCatName.trim()) return;
-    try {
-      const res = await fetch(`${workerUrl}/api/categories`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pass}` },
-        body: JSON.stringify({ name: newCatName.trim(), emoji: newCatEmoji || '📦' })
-      });
-      if (res.ok) {
-        setNewCatName(''); setNewCatEmoji('📦');
-        loadCategories();
-      } else {
-        alert('添加失败，可能名称已存在');
-      }
-    } catch { alert('网络错误'); }
-  };
-
-  const handleDeleteCategory = async (id: number) => {
-    if (!window.confirm('确定要删除这个品类吗？')) return;
-    try {
-      await fetch(`${workerUrl}/api/categories/${id}`, {
-        method: 'DELETE', headers: { 'Authorization': `Bearer ${pass}` }
-      });
-      loadCategories();
-    } catch { alert('删除失败'); }
-  };
-
-  if (!isAuthed) {
-    return (
-      <div className="max-w-md mx-auto py-20">
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-          <h2 className="text-2xl font-bold mb-6">Admin Access</h2>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input
-              type="password"
-              placeholder="Enter password..."
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
-              value={pass}
-              onChange={e => setPass(e.target.value)}
-            />
-            <button className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold">Login</button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-4xl mx-auto py-10 space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Create Daily Pick</h1>
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "Publishing..." : "Finish & Publish"}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-500 uppercase">Post Title</label>
-            <input
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. Why this helmet is a steal, or Beware of fake SKUs"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-500 uppercase">Post Type</label>
-            <div className="flex gap-4">
-              <button
-                onClick={() => setType('recommend')}
-                className={cn("flex-1 py-3 rounded-xl border font-bold", type === 'recommend' ? "bg-green-50 border-green-500 text-green-700" : "bg-white border-slate-200 text-slate-400")}
-              >
-                Recommend
-              </button>
-              <button
-                onClick={() => setType('warning')}
-                className={cn("flex-1 py-3 rounded-xl border font-bold", type === 'warning' ? "bg-red-50 border-red-500 text-red-700" : "bg-white border-slate-200 text-slate-400")}
-              >
-                Warning
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-4 pt-4 border-t border-slate-100">
-            <h3 className="font-bold text-slate-900 flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-blue-500" /> Structured Meta Info</h3>
-
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-500 uppercase">所属品类</label>
-                  <button onClick={() => setShowCatManager(!showCatManager)} className="text-[10px] text-blue-500 font-bold hover:underline">⚙️ 管理品类</button>
-                </div>
-                <select
-                  value={category}
-                  onChange={e => setCategory(e.target.value)}
-                  className="w-full px-4 py-2 rounded-xl border border-slate-200 bg-white"
-                >
-                  <option value="">-- 请选择品类 --</option>
-                  {cloudCategories.map(cat => (
-                    <option key={cat.id} value={`${cat.emoji} ${cat.name}`}>{cat.emoji} {cat.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase">价格偏差状态</label>
-                <select
-                  value={priceDev} onChange={e => setPriceDev(e.target.value)}
-                  className="w-full px-4 py-2 rounded-xl border border-slate-200 bg-white"
-                >
-                  <option value="正常市场价">正常市场价</option>
-                  <option value="严重溢价 (偏贵)">严重溢价 (偏贵)</option>
-                  <option value="捡漏神价 (极便)">捡漏神价 (极便)</option>
-                </select>
-              </div>
-
-              <div className="space-y-2 col-span-2 lg:col-span-1">
-                <label className="text-xs font-bold text-slate-500 uppercase">核心参数摘要</label>
-                <input
-                  value={coreParams} onChange={e => setCoreParams(e.target.value)}
-                  placeholder="e.g. 500cc排量 / 8GB内存"
-                  className="w-full px-4 py-2 rounded-xl border border-slate-200"
-                />
-              </div>
-            </div>
-
-            {/* Category Manager Panel */}
-            {showCatManager && (
-              <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 space-y-4">
-                <h4 className="font-bold text-indigo-900 text-sm">📂 品类管理 (云端同步)</h4>
-                <div className="flex gap-2">
-                  <input
-                    value={newCatEmoji}
-                    onChange={e => setNewCatEmoji(e.target.value)}
-                    className="w-14 px-2 py-2 rounded-lg border border-indigo-200 text-center text-lg"
-                    placeholder="📦"
-                  />
-                  <input
-                    value={newCatName}
-                    onChange={e => setNewCatName(e.target.value)}
-                    placeholder="输入新品类名称..."
-                    className="flex-1 px-3 py-2 rounded-lg border border-indigo-200"
-                    onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
-                  />
-                  <button onClick={handleAddCategory} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700">添加</button>
-                </div>
-                <div className="grid gap-2 max-h-48 overflow-y-auto">
-                  {cloudCategories.map(cat => (
-                    <div key={cat.id} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-indigo-100">
-                      <span className="text-sm">{cat.emoji} {cat.name}</span>
-                      <button onClick={() => handleDeleteCategory(cat.id)} className="text-red-400 hover:text-red-600 text-xs font-bold px-2 py-1 hover:bg-red-50 rounded">删除</button>
-                    </div>
-                  ))}
-                  {cloudCategories.length === 0 && <p className="text-xs text-indigo-400 italic">暂无品类，请添加。</p>}
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4 items-center">
-              <label className="flex items-center gap-3 cursor-pointer bg-slate-50 p-3 rounded-xl border border-slate-200 hover:bg-slate-100">
-                <input
-                  type="checkbox"
-                  checked={verified}
-                  onChange={e => setVerified(e.target.checked)}
-                  className="w-5 h-5 text-blue-600 rounded"
-                />
-                <span className="text-sm font-bold text-slate-700">已与卖家确认验证过?</span>
-              </label>
-
-              <div className="space-y-2">
-                <input
-                  value={customTag} onChange={e => setCustomTag(e.target.value)}
-                  placeholder="🏷️ 自定义标签说明"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2 pt-4 border-t border-slate-100">
-            <label className="text-sm font-bold text-slate-500 uppercase">Content (Markdown)</label>
-            <textarea
-              value={content}
-              onChange={e => setContent(e.target.value)}
-              rows={10}
-              placeholder="Use markdown to format your post. You can insert images below."
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 font-mono text-sm"
-            />
-            <div className="relative">
-              <input
-                type="file"
-                onChange={handleImageUpload}
-                className="hidden"
-                id="img-upload"
-                accept="image/*"
-              />
-              <label
-                htmlFor="img-upload"
-                className="inline-flex items-center gap-2 text-sm text-blue-600 font-bold cursor-pointer hover:underline"
-              >
-                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                {uploading ? "Uploading to R2..." : "Upload Image to R2"}
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <label className="text-sm font-bold text-slate-500 uppercase">Live Preview</label>
-          <div className="bg-white p-8 rounded-3xl border border-slate-200 prose prose-slate max-w-none shadow-inner min-h-[400px]">
-            <h2 className="text-2xl font-bold mb-4">{title || "Post Title Preview"}</h2>
-
-            {(category || priceDev || coreParams || customTag) && (
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-6 space-y-2 text-sm text-slate-700 not-prose">
-                {category && <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">📦 所属品类:</strong> {category}</div>}
-                <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">💵 价格状态:</strong> {priceDev}</div>
-                <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">⚙️ 核心参数:</strong> {coreParams || '-'}</div>
-                <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">🕵️ 实况沟通:</strong> {verified ? <span className="text-green-600 font-bold">✅ 已与卖家实拍确认</span> : <span className="text-amber-600 font-bold">⚠️ 未深入沟通，存在页面图盲买风险</span>}</div>
-                {customTag && <div className="flex items-center gap-2"><strong className="w-24 text-slate-900">🏷️ 补充说明:</strong> {customTag}</div>}
-              </div>
-            )}
-
-            <ReactMarkdown>{content || "Start typing to see preview..."}</ReactMarkdown>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-16 border-t border-slate-200 pt-10">
-        <h2 className="text-2xl font-bold mb-6">管理已发布帖子</h2>
-        <div className="grid gap-4">
-          {posts.map(post => (
-            <div key={post.id} className={cn("bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center transition-colors", editingPostId === post.id ? "border-blue-400 ring-2 ring-blue-100" : "border-slate-100 hover:border-slate-300")}>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={cn("text-xs font-bold px-2 py-0.5 rounded uppercase", post.type === 'recommend' ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
-                    {post.type}
-                  </span>
-                  {post.category && <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{post.category}</span>}
-                  <span className="text-xs text-slate-400">创建: {new Date(post.date).toLocaleDateString()}</span>
-                  {post.updated_date && <span className="text-xs text-blue-400">更新: {new Date(post.updated_date).toLocaleDateString()}</span>}
-                </div>
-                <p className="font-bold text-slate-700 mt-1 truncate">{post.title}</p>
-              </div>
-              <div className="flex gap-2 ml-4 shrink-0">
-                <button
-                  onClick={() => startEditing(post)}
-                  className="text-blue-500 hover:text-white font-bold px-4 py-2 hover:bg-blue-500 rounded-lg text-sm border border-blue-200 transition-all"
-                >
-                  编辑
-                </button>
-                <button
-                  onClick={async () => {
-                    if (window.confirm('确定要永久删除这篇帖子吗？')) {
-                      try {
-                        await fetch(`${workerUrl}/api/posts/${post.id}`, {
-                          method: 'DELETE',
-                          headers: { 'Authorization': `Bearer ${pass}` }
-                        });
-                        if (editingPostId === post.id) clearForm();
-                        onRefresh();
-                      } catch (e) {
-                        alert('Delete failed');
-                      }
-                    }
-                  }}
-                  className="text-red-500 hover:text-white font-bold px-4 py-2 hover:bg-red-500 rounded-lg text-sm border border-red-200 transition-all"
-                >
-                  删除
-                </button>
-              </div>
-            </div>
-          ))}
-          {posts.length === 0 && <p className="text-slate-400 italic">No posts published yet.</p>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// --- Sub-components ---
 
 function CategoryCard({ title, description, image, why }: { title: string, description: string, image: string, why: string }) {
   return (

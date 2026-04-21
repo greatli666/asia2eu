@@ -236,6 +236,24 @@ export default function Admin() {
     finally { setUploading(false); }
   };
 
+  const handleKnowledgeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`${WORKER_URL}/api/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.url) setKContent(prev => prev + `\n\n![Image](${data.url})`);
+    } catch { alert('Upload failed'); }
+    finally { setUploading(false); }
+  };
+
   const handleSubmit = async () => {
     if (!title || !content) return;
     setLoading(true);
@@ -669,6 +687,16 @@ export default function Admin() {
               <textarea value={kContent} onChange={e => setKContent(e.target.value)} rows={14}
                 placeholder="Write in Markdown…"
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-white/5 font-mono text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white resize-y" />
+              <div className="relative">
+                <input type="file" onChange={handleKnowledgeImageUpload} className="hidden" id="k-img-upload" accept="image/*" />
+                <label
+                  htmlFor="k-img-upload"
+                  className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 font-bold cursor-pointer hover:underline"
+                >
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                  {uploading ? 'Uploading to R2...' : 'Upload Image to R2'}
+                </label>
+              </div>
             </div>
           </div>
           {/* Right — Preview */}
