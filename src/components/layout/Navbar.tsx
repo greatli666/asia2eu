@@ -1,9 +1,20 @@
+/**
+ * Navbar — Global floating glassmorphism navigation bar.
+ *
+ * Features:
+ *   - Floating pill design (fixed top-4, glass effect)
+ *   - Active link highlighting via React Router location
+ *   - Dark/light theme toggle button
+ *   - Admin panel link with auth-state indicator (green dot when logged in)
+ */
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Moon, Sun, Settings } from 'lucide-react';
 
 export default function Navbar() {
   const { resolvedTheme, setTheme } = useTheme();
+  const { isAuthed } = useAuth();
   const location = useLocation();
 
   const toggleTheme = () => {
@@ -64,14 +75,21 @@ export default function Navbar() {
             )}
           </button>
           
-          {/* Admin panel link */}
+          {/* Admin panel link — green dot when authenticated */}
           <Link
             to="/admin"
-            className="p-2 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+            className="p-2 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer relative"
             aria-label="Admin Panel"
             title="Admin Panel"
           >
-            <Settings className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+            <Settings className={`w-5 h-5 transition-colors ${
+              isAuthed
+                ? 'text-green-500'
+                : 'text-slate-600 dark:text-slate-300'
+            }`} />
+            {isAuthed && (
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-white dark:border-slate-900 animate-pulse" />
+            )}
           </Link>
         </div>
         
