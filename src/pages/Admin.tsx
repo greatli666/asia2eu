@@ -1,12 +1,13 @@
 /**
  * Admin Panel Page
  *
- * Full-featured CMS dashboard for managing Daily Picks posts and categories.
+ * Full-featured CMS dashboard for managing content.
  * Features:
  *   - Password authentication against the Cloudflare Worker backend
- *   - Create / Edit / Delete posts with live Markdown preview
- *   - Image upload to Cloudflare R2
- *   - Cloud-synced category management (CRUD against D1)
+ *   - Tab 1 — Daily Picks: Create/Edit/Delete posts with live Markdown preview
+ *   - Tab 1 — Image upload to Cloudflare R2
+ *   - Tab 1 — Cloud-synced category management (CRUD against D1)
+ *   - Tab 2 — Knowledge Base: Create/Edit/Delete knowledge articles
  *   - Glassmorphism styling consistent with the Portal design system
  */
 import React, { useState, useEffect } from 'react';
@@ -15,7 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import {
   Lock, LogOut, Loader2, Camera, CheckCircle2,
-  Trash2, Pencil, Plus, FolderOpen
+  Trash2, Pencil, Plus, FolderOpen, BookOpen, Tag
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────
@@ -40,6 +41,18 @@ interface Category {
   sort_order: number;
 }
 
+interface KnowledgeArticle {
+  id: number;
+  title: string;
+  content: string;
+  summary: string;
+  tags: string;       // comma-separated
+  date: string;
+  updated_date: string;
+}
+
+type AdminTab = 'picks' | 'knowledge';
+
 // ─── Constants ──────────────────────────────────────────
 const WORKER_URL = import.meta.env.VITE_WORKER_URL || 'https://asia2eu.lizhilianggreat.workers.dev';
 
@@ -48,6 +61,18 @@ export default function Admin() {
   const { isAuthed, token, login, logout } = useAuth();
   const [passInput, setPassInput] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+
+  // Active tab
+  const [activeTab, setActiveTab] = useState<AdminTab>('picks');
+
+  // Knowledge article form state
+  const [articles, setArticles] = useState<KnowledgeArticle[]>([]);
+  const [kTitle, setKTitle] = useState('');
+  const [kContent, setKContent] = useState('');
+  const [kSummary, setKSummary] = useState('');
+  const [kTags, setKTags] = useState('');
+  const [editingArticleId, setEditingArticleId] = useState<number | null>(null);
+  const [kLoading, setKLoading] = useState(false);
 
   // Post form state
   const [posts, setPosts] = useState<DailyPost[]>([]);
@@ -84,10 +109,58 @@ export default function Admin() {
     } catch (e) { console.error('Failed to load categories', e); }
   };
 
+  const loadArticles = async () => {
+    try {
+      const res = await fetch(`${WORKER_URL}/api/knowledge`);
+      if (res.ok) setArticles(await res.json());
+    } catch (e) { console.error('Failed to fetch knowledge articles', e); }
+  };
+
   useEffect(() => {
     loadPosts();
-    if (isAuthed) loadCategories();
+    if (isAuthed) { loadCategories(); loadArticles(); }
   }, [isAuthed]);
+
+  // ─── Knowledge CRUD ───────────────────────────────────
+  const clearKForm = () => {
+    setKTitle(''); setKContent(''); setKSummary(''); setKTags('');
+    setEditingArticleId(null);
+  };
+
+  const startEditingArticle = (a: KnowledgeArticle) => {
+    setEditingArticleId(a.id);
+    setKTitle(a.title); setKContent(a.content);
+    setKSummary(a.summary || ''); setKTags(a.tags || '');
+    setActiveTab('knowledge');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleKSubmit = async () => {
+    if (!kTitle || !kContent) return;
+    setKLoading(true);
+    const isEditing = editingArticleId !== null;
+    const url = isEditing ? `${WORKER_URL}/api/knowledge/${editingArticleId}` : `${WORKER_URL}/api/knowledge`;
+    try {
+      const res = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ title: kTitle, content: kContent, summary: kSummary, tags: kTags })
+      });
+      if (res.ok) { alert(isEditing ? '更新成功！' : '发布成功！'); clearKForm(); loadArticles(); }
+    } catch { alert('Operation failed'); }
+    finally { setKLoading(false); }
+  };
+
+  const handleDeleteArticle = async (id: number) => {
+    if (!window.confirm('确定要删除这篇知识文章吗？')) return;
+    try {
+      await fetch(`${WORKER_URL}/api/knowledge/${id}`, {
+        method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (editingArticleId === id) clearKForm();
+      loadArticles();
+    } catch { alert('Delete failed'); }
+  };
 
   // ─── Auth ─────────────────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
@@ -268,23 +341,61 @@ export default function Admin() {
       animate={{ opacity: 1 }}
       className="w-full max-w-6xl mx-auto space-y-8"
     >
+      {/* Tab Bar */}
+      <div className="flex items-center gap-1 p-1 glass-card w-fit rounded-2xl">
+        <button
+          onClick={() => setActiveTab('picks')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === 'picks'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+          }`}
+        >
+          <Tag className="w-4 h-4" /> Daily Picks
+        </button>
+        <button
+          onClick={() => setActiveTab('knowledge')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === 'knowledge'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" /> Knowledge Base
+        </button>
+      </div>
       {/* Header Bar */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-            {editingPostId ? '✏️ Editing Post' : '📝 Create Daily Pick'}
+            {activeTab === 'knowledge'
+              ? (editingArticleId ? '✏️ Editing Article' : '📚 New Knowledge Article')
+              : (editingPostId ? '✏️ Editing Post' : '📝 Create Daily Pick')}
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Manage your Asia2EU Daily Picks content</p>
+          <p className="text-sm text-slate-500 mt-1">
+            {activeTab === 'knowledge' ? 'Manage Knowledge Base articles' : 'Manage Asia2EU Daily Picks content'}
+          </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleSubmit}
-            disabled={loading || !title || !content}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-xl disabled:opacity-50 transition-all flex items-center gap-2"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            {editingPostId ? 'Update' : 'Publish'}
-          </button>
+          {activeTab === 'picks' ? (
+            <button
+              onClick={handleSubmit}
+              disabled={loading || !title || !content}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-xl disabled:opacity-50 transition-all flex items-center gap-2"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {editingPostId ? 'Update' : 'Publish'}
+            </button>
+          ) : (
+            <button
+              onClick={handleKSubmit}
+              disabled={kLoading || !kTitle || !kContent}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-xl disabled:opacity-50 transition-all flex items-center gap-2"
+            >
+              {kLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {editingArticleId ? 'Update Article' : 'Publish Article'}
+            </button>
+          )}
           <button
             onClick={() => { logout(); setPassInput(''); }}
             className="p-2.5 rounded-xl glass hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors group"
@@ -295,6 +406,10 @@ export default function Admin() {
         </div>
       </div>
 
+      {/* ── Tab: Daily Picks ── */}
+      <AnimatePresence mode="wait">
+      {activeTab === 'picks' && (
+      <motion.div key="picks" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
       {/* Editor Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column — Form */}
@@ -511,18 +626,10 @@ export default function Admin() {
                 <p className="font-bold text-slate-700 dark:text-slate-200 mt-1 truncate text-sm">{post.title}</p>
               </div>
               <div className="flex gap-2 ml-4 shrink-0">
-                <button
-                  onClick={() => startEditing(post)}
-                  className="p-2 rounded-lg border border-blue-200 dark:border-blue-700 text-blue-500 hover:bg-blue-500 hover:text-white transition-all"
-                  title="编辑"
-                >
+                <button onClick={() => startEditing(post)} className="p-2 rounded-lg border border-blue-200 dark:border-blue-700 text-blue-500 hover:bg-blue-500 hover:text-white transition-all" title="编辑">
                   <Pencil className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => handleDeletePost(post.id)}
-                  className="p-2 rounded-lg border border-red-200 dark:border-red-700 text-red-500 hover:bg-red-500 hover:text-white transition-all"
-                  title="删除"
-                >
+                <button onClick={() => handleDeletePost(post.id)} className="p-2 rounded-lg border border-red-200 dark:border-red-700 text-red-500 hover:bg-red-500 hover:text-white transition-all" title="删除">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -531,6 +638,82 @@ export default function Admin() {
           {posts.length === 0 && <p className="text-slate-400 italic text-sm">No posts published yet.</p>}
         </div>
       </div>
+      </motion.div>
+      )}
+
+      {/* ── Tab: Knowledge Base ── */}
+      {activeTab === 'knowledge' && (
+      <motion.div key="knowledge" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="space-y-6">
+
+        {/* Knowledge Editor Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left — Form */}
+          <div className="space-y-5">
+            <div className="glass-card p-5 space-y-3">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Title</label>
+              <input value={kTitle} onChange={e => setKTitle(e.target.value)} placeholder="Article title…"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-white/5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" />
+            </div>
+            <div className="glass-card p-5 space-y-3">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Summary (list preview)</label>
+              <input value={kSummary} onChange={e => setKSummary(e.target.value)} placeholder="One-line summary shown on the Knowledge page…"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-white/5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" />
+            </div>
+            <div className="glass-card p-5 space-y-3">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tags (comma-separated)</label>
+              <input value={kTags} onChange={e => setKTags(e.target.value)} placeholder="e.g. React, Cloudflare, TypeScript"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-white/5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" />
+            </div>
+            <div className="glass-card p-5 space-y-3">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Content (Markdown)</label>
+              <textarea value={kContent} onChange={e => setKContent(e.target.value)} rows={14}
+                placeholder="Write in Markdown…"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-white/5 font-mono text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white resize-y" />
+            </div>
+          </div>
+          {/* Right — Preview */}
+          <div className="space-y-4">
+            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Live Preview</label>
+            <div className="glass-card p-8 prose prose-slate dark:prose-invert max-w-none min-h-[500px]">
+              <h2 className="text-2xl font-bold mb-2">{kTitle || 'Article Title Preview'}</h2>
+              {kSummary && <p className="text-slate-500 italic text-sm mb-4">{kSummary}</p>}
+              {kTags && <div className="flex flex-wrap gap-1.5 mb-6 not-prose">{kTags.split(',').map(t=>t.trim()).filter(Boolean).map(t=>(<span key={t} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50">{t}</span>))}</div>}
+              <ReactMarkdown>{kContent || 'Start typing to see preview…'}</ReactMarkdown>
+            </div>
+          </div>
+        </div>
+
+        {/* Knowledge Articles List */}
+        <div className="glass-card p-6 space-y-4">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">已发布知识文章</h2>
+          <div className="grid gap-3">
+            {articles.map(a => (
+              <div key={a.id} className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                editingArticleId === a.id
+                  ? 'border-blue-400 bg-blue-50/50 dark:bg-blue-900/10 ring-2 ring-blue-200 dark:ring-blue-800'
+                  : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white/50 dark:bg-white/5'
+              }`}>
+                <div className="flex-1 min-w-0">
+                  {a.tags && <div className="flex gap-1 flex-wrap mb-1">{a.tags.split(',').map(t=>t.trim()).filter(Boolean).map(t=>(<span key={t} className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">{t}</span>))}</div>}
+                  <p className="font-bold text-slate-700 dark:text-slate-200 truncate text-sm">{a.title}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{new Date(a.date).toLocaleDateString()}</p>
+                </div>
+                <div className="flex gap-2 ml-4 shrink-0">
+                  <button onClick={() => startEditingArticle(a)} className="p-2 rounded-lg border border-blue-200 dark:border-blue-700 text-blue-500 hover:bg-blue-500 hover:text-white transition-all" title="编辑">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => handleDeleteArticle(a.id)} className="p-2 rounded-lg border border-red-200 dark:border-red-700 text-red-500 hover:bg-red-500 hover:text-white transition-all" title="删除">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {articles.length === 0 && <p className="text-slate-400 italic text-sm">No knowledge articles yet. Add your first one above.</p>}
+          </div>
+        </div>
+      </motion.div>
+      )}
+      </AnimatePresence>
     </motion.div>
   );
 }

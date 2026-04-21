@@ -1,109 +1,264 @@
-# ASIA2EU 全套部署保姆级教程 (小白直通车) 🚀
+# ASIA2EU Personal Portal — 部署与维护手册 🚀
 
-本手册教你如何将网站所有的“大脑”和“图片库”全部免费托管在 Cloudflare。按照以下 4 个步骤操作，你就能彻底关掉那个昂贵的 VPS。
+> **版本 2.0** | 更新于 2026-04-21
 
 ---
 
-### 第一步：创建云端数据库 (D1)
-1. 登录 Cloudflare 控制台，点击左侧 **Workers & Pages** -> **D1**。
-2. 点击 **Create database** -> **Dashboard**，名字随便起（建议：`asia2eu-db`）。
-3. 进入你刚建好的数据库，点击顶部的 **Console (控制台)**。
-4. **把下面这段话原样粘贴进去并点回车运行：**
+## 📐 项目架构
+
+```
+asia2eu/
+├── src/
+│   ├── App.tsx                    # 根路由配置 (ThemeProvider + AuthProvider + BrowserRouter)
+│   ├── index.css                  # Tailwind v4 主配置 + Glassmorphism 工具类
+│   ├── main.tsx                   # React 入口
+│   ├── contexts/
+│   │   ├── ThemeContext.tsx        # 全局暗黑/浅色模式上下文
+│   │   └── AuthContext.tsx         # 全局管理员认证状态（内存，不持久化）
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── Layout.tsx          # 全局页面包装（Navbar + Outlet + Footer）
+│   │   │   ├── Navbar.tsx          # 浮动玻璃态导航栏
+│   │   │   └── Footer.tsx          # 全局页脚
+│   │   └── bento/
+│   │       ├── CardWrapper.tsx     # Bento 卡片基础动效包装
+│   │       ├── BioCard.tsx         # 个人简介卡
+│   │       ├── StatsCard.tsx       # 实时时钟卡
+│   │       ├── SocialCard.tsx      # 社交链接卡
+│   │       ├── SkillsCard.tsx      # Tech Stack 卡
+│   │       ├── ProjectsCard.tsx    # 项目展示卡
+│   │       └── KnowledgeCard.tsx   # 知识库摘要卡
+│   └── pages/
+│       ├── Portal.tsx              # 首页 Bento Grid (/)
+│       ├── Asia2EU.tsx             # 旧版 Asia2EU 服务页 (/asia2eu)
+│       ├── Knowledge.tsx           # 知识库页面 (/knowledge)
+│       └── Admin.tsx               # 管理后台 (/admin)
+├── worker.js                       # Cloudflare Worker 后端 API
+├── wrangler.toml                   # Worker 配置（D1 + R2 bindings）
+└── CHANGELOG.md                    # 版本变更日志
+```
+
+---
+
+## 🗺️ 路由说明
+
+| URL | 页面 | 说明 |
+|-----|------|------|
+| `/` | Portal | Bento Grid 个人主页 |
+| `/asia2eu` | Asia2EU | 原版代购服务页面 |
+| `/knowledge` | Knowledge | 知识库文章列表 |
+| `/admin` | Admin | CMS 后台管理（密码保护） |
+
+> **注意**：旧版 `/#admin` Hash 路由已废弃，请使用 `/admin`。
+
+---
+
+## ☁️ Cloudflare 基础设施
+
+### 架构图
+
+```
+用户浏览器
+    │
+    ▼
+Cloudflare Pages (asia2eu.pages.dev / delins.cn)
+    │  前端静态资源 (React SPA)
+    │
+    ▼
+Cloudflare Worker (asia2eu.lizhilianggreat.workers.dev)
+    │  RESTful API 后端
+    ├── D1 Database (asia2eu) — 文章、品类、知识库数据
+    └── R2 Bucket (asia2eubucket) — 图片存储
+```
+
+---
+
+## 🗄️ 数据库结构 (D1)
+
+### `posts` 表 — Daily Picks 文章
 ```sql
-CREATE TABLE IF NOT EXISTS posts (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  title TEXT NOT NULL,
-  content TEXT NOT NULL,
-  type TEXT CHECK( type IN ('recommend','warning') ) NOT NULL,
-  date TEXT NOT NULL
+CREATE TABLE posts (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  title        TEXT NOT NULL,
+  content      TEXT NOT NULL,          -- Markdown 格式
+  type         TEXT CHECK(type IN ('recommend','warning')) NOT NULL,
+  category     TEXT DEFAULT '',
+  verified     INTEGER DEFAULT 0,       -- 0=未验证, 1=已验证
+  price_status TEXT DEFAULT '正常市场价',
+  core_params  TEXT DEFAULT '',
+  custom_tag   TEXT DEFAULT '',
+  date         TEXT NOT NULL,           -- ISO 8601
+  updated_date TEXT DEFAULT ''
 );
 ```
-*这一步做完，你的商品存储空间就开好了。*
 
----
-
-### 第二步：创建云端图片库 (R2)
-1. 点击 Cloudflare 左侧 **R2**。
-2. 点击 **Create bucket**，名字必须叫：`asia2eubucket`。
-3. 创建好后，点进这个存储桶 -> 点击顶部的 **Settings (设置)**。
-4. 找到 **Public access (公开访问)** 选项，点击 **Allow Access** (它会给你一个绿色的 `.r2.dev` 结尾的链接，记下它，或者绑定你自己想用的域名)。
-
----
-
-### 第三步：部署后端大脑 (Worker)
-1. 点击左侧 **Workers & Pages** -> **Overview** -> **Create application** -> **Create Worker**。
-2. 名字随你起（比如就叫 `asia2eu`），点击 **Deploy**。
-3. 部署成功后，点击 **Edit Code (编辑代码)**。
-4. **把里面的东西全部删掉，把下面的代码原样贴进去：**
-*(注意：代码末尾的 imageUrl 建议换成你真实的域名或 R2 公开链接)*
-
-```javascript
-// 粘贴到 Worker 编辑器里的代码：
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    const method = request.method;
-    const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, Authorization" };
-    if (method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
-    // API 路由逻辑
-    if (url.pathname === "/api/posts" && method === "GET") {
-      const { results } = await env.D1_DB.prepare("SELECT * FROM posts ORDER BY date DESC").all();
-      return Response.json(results, { headers: corsHeaders });
-    }
-    if (url.pathname.startsWith("/img/") && method === "GET") {
-      const fileName = url.pathname.replace("/img/", "");
-      const object = await env.R2_BUCKET.get(fileName);
-      if (!object) return new Response("Not Found", { status: 404 });
-      const headers = new Headers(); object.writeHttpMetadata(headers);
-      headers.set("Access-Control-Allow-Origin", "*");
-      return new Response(object.body, { headers });
-    }
-    const authHeader = request.headers.get("Authorization");
-    if (authHeader !== `Bearer ${env.ADMIN_PASSWORD}`) return new Response("UnAuth", { status: 401, headers: corsHeaders });
-
-    if (url.pathname === "/api/posts" && method === "POST") {
-      const { title, content, type } = await request.json();
-      await env.D1_DB.prepare("INSERT INTO posts (title, content, type, date) VALUES (?, ?, ?, ?)").bind(title, content, type, new Date().toISOString()).run();
-      return Response.json({ success: true }, { headers: corsHeaders });
-    }
-    if (url.pathname.startsWith("/api/posts/") && method === "DELETE") {
-      const id = url.pathname.split("/").pop();
-      await env.D1_DB.prepare("DELETE FROM posts WHERE id = ?").bind(id).run();
-      return Response.json({ success: true }, { headers: corsHeaders });
-    }
-    if (url.pathname === "/api/upload" && method === "POST") {
-      const formData = await request.formData();
-      const file = formData.get("file");
-      const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
-      await env.R2_BUCKET.put(fileName, file, { httpMetadata: { contentType: file.type } });
-      return Response.json({ url: `${url.origin}/img/${fileName}` }, { headers: corsHeaders });
-    }
-    return new Response("Not Found", { status: 404 });
-  }
-};
+### `categories` 表 — 品类管理
+```sql
+CREATE TABLE categories (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL UNIQUE,
+  emoji      TEXT DEFAULT '📦',
+  sort_order INTEGER DEFAULT 0
+);
 ```
-5. 点击右上角 **Save and deploy**。
-6. **重要的一步：** 回到这个 Worker 的页面，点击 **Settings** -> **Variables**。你需要添加三个东西：
-   - **D1 Database Bindings**: 点击 Add，变量名填 `D1_DB`，数据库选你第一步建的。
-   - **R2 Bucket Bindings**: 点击 Add，变量名填 `R2_BUCKET`，存储桶选你第二步建的。
-   - **Environment Variables**: 点击 Add，变量名填 `ADMIN_PASSWORD`，值填入你自定义的**强密码**。
+
+### `knowledge_articles` 表 — 知识库 (v2.0 新增)
+```sql
+CREATE TABLE knowledge_articles (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  title      TEXT NOT NULL,
+  content    TEXT NOT NULL,            -- Markdown 格式
+  summary    TEXT DEFAULT '',          -- 列表页摘要
+  tags       TEXT DEFAULT '',          -- 逗号分隔标签
+  date       TEXT NOT NULL,
+  updated_date TEXT DEFAULT ''
+);
+```
+
+> **迁移方式**：在 Cloudflare D1 控制台的 Console 中执行上述 `CREATE TABLE` SQL。
 
 ---
 
-### 第四步：部署前端网页 (Pages)
-1. 在本地本项目文件夹下，确认 `dist` 文件夹是最新的。
-2. 在 Cloudflare 点击 **Workers & Pages** -> **Create application** -> **Pages**。
-3. 点击 **Upload assets** -> 上传你的 `dist` 文件夹。
-4. 部署完你会得到一个 `xxx.pages.dev` 的网址，大功告成！
+## 🔌 Worker API 端点
+
+### 公开端点（无需认证）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/posts` | 获取所有 Daily Picks |
+| GET | `/api/categories` | 获取所有品类 |
+| GET | `/api/knowledge` | 获取所有知识库文章 |
+| GET | `/img/:filename` | 从 R2 获取图片 |
+
+### 受保护端点（需 `Authorization: Bearer <ADMIN_PASSWORD>`）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/posts` | 创建文章 |
+| PUT | `/api/posts/:id` | 更新文章 |
+| DELETE | `/api/posts/:id` | 删除文章 |
+| POST | `/api/categories` | 创建品类 |
+| PUT | `/api/categories/:id` | 更新品类 |
+| DELETE | `/api/categories/:id` | 删除品类 |
+| POST | `/api/knowledge` | 创建知识文章 |
+| PUT | `/api/knowledge/:id` | 更新知识文章 |
+| DELETE | `/api/knowledge/:id` | 删除知识文章 |
+| POST | `/api/upload` | 上传图片到 R2 |
 
 ---
 
-### 💡 常用维护技巧
-- **进后台**：访问 `你的域名/#admin`，密码使用你在 Worker 设置里填写的密码。 (警告：由于前端密码验证为纯文本对比，请务必保证你通过 HTTPS 访问网站并设置 Worker 环境变量为 Secret 类型)
-- **发贴**：在后台填写标题、设置参数、点“Upload Image”自动插图，最后点发布。
-- **删帖**：后台最底部有已发贴子列表，点红色按钮即物理删除。
-- **本地开发**：如果换了 Worker 域名，记得改本地 `.env` 文件里的地址并重启。
+## 🚀 首次部署流程
+
+### 第一步：D1 数据库初始化
+
+1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages** → **D1**
+2. 创建数据库，名称：`asia2eu`（记录 database_id）
+3. 在 D1 Console 中依次执行以下三个建表语句（见上方《数据库结构》章节）
+
+### 第二步：R2 图床创建
+
+1. 左侧菜单 → **R2**
+2. 创建 Bucket，名称：`asia2eubucket`
+3. Settings → **Public access** → Allow Access
+
+### 第三步：部署 Worker 后端
+
+```bash
+# 在项目根目录
+npx wrangler deploy
+```
+
+在 Cloudflare Worker 控制台 → Settings → Variables 中添加：
+- **D1 Database Binding**: 变量名 `D1_DB`，选择步骤一创建的数据库
+- **R2 Bucket Binding**: 变量名 `R2_BUCKET`，选择步骤二的存储桶
+- **Secret**: 变量名 `ADMIN_PASSWORD`，填入强密码（**必须设为 Secret 类型**）
+
+### 第四步：部署前端 Pages
+
+```bash
+npm run build
+mv wrangler.toml wrangler.toml.bak
+npx wrangler pages deploy dist --project-name asia2eu
+mv wrangler.toml.bak wrangler.toml
+```
+
+---
+
+## 🔄 日常更新流程
+
+```bash
+# 1. 修改代码
+# 2. TypeScript 检查
+npm run lint
+
+# 3. 构建
+npm run build
+
+# 4. 推送 GitHub
+git add .
+git commit -m "feat/fix: description"
+git push
+
+# 5. 部署前端到 Pages
+mv wrangler.toml wrangler.toml.bak
+npx wrangler pages deploy dist --project-name asia2eu
+mv wrangler.toml.bak wrangler.toml
+
+# 6. 部署后端 Worker (仅 worker.js 有变更时)
+npx wrangler deploy
+```
+
+---
+
+## 🔐 管理后台使用
+
+1. 访问 `https://你的域名/admin`
+2. 输入在 Cloudflare Worker 中设置的 `ADMIN_PASSWORD`
+3. 登录后 Navbar 齿轮图标变绿 + 脉冲点
+4. 支持：发布/编辑/删除 Daily Picks 文章、管理品类、上传图片、管理知识库文章
 
 > [!CAUTION]
-> **安全警告**：务必在 Cloudflare Worker 的后台将 `ADMIN_PASSWORD` 设为 **Secret** 类型。切勿在 README 或任何公开代码中记录你的真实密码！
+> **安全**：`ADMIN_PASSWORD` 必须设为 Cloudflare Worker 的 **Secret** 类型，切勿明文写入代码或 README。
+
+---
+
+## 🛠️ 本地开发
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+# → http://localhost:3000
+
+# TypeScript 检查
+npm run lint
+
+# 生产构建
+npm run build
+```
+
+创建 `.env` 文件配置 Worker 地址：
+```env
+VITE_WORKER_URL=https://asia2eu.lizhilianggreat.workers.dev
+```
+
+---
+
+## 🎨 设计系统
+
+| 元素 | 规格 |
+|------|------|
+| 字体 | Inter (Google Fonts) |
+| 风格 | Glassmorphism (`backdrop-blur`, `bg-white/70`) |
+| 暗色 | Slate-950 背景，White/5 卡片 |
+| 亮色 | Slate-50 背景，White/70 卡片 |
+| 主色 | Blue-600 |
+| 动效 | Framer Motion spring，stagger 0.1s |
+| 工具类 | `.glass` `.glass-card` `.glass-hover`（`index.css`） |
+
+---
+
+> [!NOTE]
+> 详细版本变更历史见 [CHANGELOG.md](./CHANGELOG.md)
