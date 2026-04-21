@@ -1,0 +1,16 @@
+name = "asia2eu"
+main = "worker.js"
+compatibility_date = "2024-04-03"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "D1_DB"
+database_name = "asia2eu"
+database_id = "415ee059-c74b-4012-aba5-cec6536c9024"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "asia2eubucket"
+
+[observability]
+enabled = true
