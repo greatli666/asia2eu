@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  PlaneTakeoff,
   Tag,
   CheckCircle2,
   Star,
@@ -23,7 +22,6 @@ import {
   MessageCircle,
   Mail,
   X,
-  Menu,
   Coffee,
   User,
   MapPin,
@@ -32,7 +30,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
-import { cn } from '@/src/lib/utils';
+import { cn } from '../lib/utils';
 
 // --- Types ---
 type View = 'home' | 'ideas' | 'about' | 'faq' | 'contact' | 'daily';
@@ -154,7 +152,7 @@ export default function Asia2EU() {
   // Data State for Cloudflare Features
   const [dailyPosts, setDailyPosts] = useState<DailyPost[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const WORKER_URL = import.meta.env.VITE_WORKER_URL || 'https://your-worker-name.your-subdomain.workers.dev';
+  const WORKER_URL = import.meta.env.VITE_WORKER_URL || 'https://asia2eu.lizhilianggreat.workers.dev';
 
   const loadPosts = async () => {
     try {
